@@ -3,7 +3,6 @@ from supabase import create_client, Client
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
-import uuid
 
 # 1. Credenciales de Balespi Import
 SUPABASE_URL = "https://erwhreatpqxnxcirkozx.supabase.co"
@@ -45,7 +44,7 @@ class Venta(BaseModel):
 # 3. Endpoints
 @app.get("/")
 def leer_raiz():
-    return {"mensaje": "¡Balespi API 24/7 activa!"}
+    return {"mensaje": "¡Balespi API 24/7 activa y blindada!"}
 
 @app.get("/productos")
 def obtener_productos():
@@ -54,21 +53,27 @@ def obtener_productos():
 
 @app.post("/registrar_venta")
 def registrar_venta(venta: Venta):
-    # Registrar cabecera
-    supabase.table("orders").insert({
-        "id": venta.order_id,
-        "seller": venta.seller,
-        "client": venta.client,
-        "phone": venta.phone,
-        "channel": venta.channel,
-        "total": venta.total
-    }).execute()
+    try:
+        # 1. Registrar cabecera (Ajustado a las columnas reales de tu Supabase)
+        supabase.table("orders").insert({
+            "id": venta.order_id,
+            "seller": venta.seller,
+            "client": venta.client,
+            "phone": venta.phone,
+            "channel": venta.channel,
+            "status": "completado",  # Dato agregado
+            "subtotal": venta.total  # Mapeado a la columna real que vimos
+        }).execute()
 
-    for item in venta.items:
-        # Lógica de stock simplificada para la nube
-        prod = supabase.table("products").select("*").eq("id", item.product_id).execute().data[0]
-        col = f"stock_{venta.channel}"
-        nuevo_stock = prod[col] - item.qty
-        supabase.table("products").update({col: nuevo_stock}).eq("id", item.product_id).execute()
-    
-    return {"estado": "exito", "order_id": venta.order_id}
+        # 2. Descontar stock
+        for item in venta.items:
+            prod = supabase.table("products").select("*").eq("id", item.product_id).execute().data[0]
+            col = f"stock_{venta.channel}"
+            nuevo_stock = prod[col] - item.qty
+            supabase.table("products").update({col: nuevo_stock}).eq("id", item.product_id).execute()
+        
+        return {"estado": "exito", "order_id": venta.order_id}
+        
+    except Exception as e:
+        # Si algo explota en BD, esto evitará el Error 500 y nos dirá el problema exacto
+        return {"estado": "error", "detalle": str(e)}
