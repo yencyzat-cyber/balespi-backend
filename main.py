@@ -54,15 +54,16 @@ def obtener_productos():
 @app.post("/registrar_venta")
 def registrar_venta(venta: Venta):
     try:
-        # 1. Registrar cabecera (Ajustado a las columnas reales de tu Supabase)
+        # 1. Registrar cabecera
         supabase.table("orders").insert({
             "id": venta.order_id,
             "seller": venta.seller,
             "client": venta.client,
             "phone": venta.phone,
             "channel": venta.channel,
-            "status": "completado",  # Dato agregado
-            "subtotal": venta.total  # Mapeado a la columna real que vimos
+            "status": "completado",
+            "subtotal": venta.subtotal, # Mandamos el subtotal
+            "total": venta.total        # Y mandamos el total final
         }).execute()
 
         # 2. Descontar stock
