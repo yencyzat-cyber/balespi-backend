@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Balespi Import - Sistema de Ventas</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function App() {
+            const [productos, setProductos] = useState([]);
+            const [carrito, setCarrito] = useState([]);
+            const [cargando, setCargando] = useState(true);
+
+            // 1. CONEXIÓN AL BACKEND (RENDER)
+            const API_URL = "https://balespi-api.onrender.com";
+
+            useEffect(() => {
+                fetch(`${API_URL}/productos`)
+                    .then(res => res.json())
+                    .then(data => {
+                        setProductos(data);
+                        setCargando(false);
+                    });
+            }, []);
+
+            const agregarAlCarrito = (p) => {
+                setCarrito([...carrito, { ...p, cantidad: 1 }]);
+            };
+
+            const procesarVenta = () => {
+                const venta = {
+                    order_id: "V-" + Math.floor(Math.random() * 10000),
+                    seller: "Vendedora 01",
+                    client: "Cliente Web",
+                    channel: "tienda", // o "live"
+                    total: carrito.reduce((sum, item) => sum + item.price_tienda, 0),
+                    items: carrito.map(item => ({
+                        product_id: item.id,
+                        sale_type: "unidad",
+                        qty: 1,
+                        price_applied: item.price_tienda
+                    }))
+                };
+
+                // 2. ENVIAR VENTA A LA NUBE
+                fetch(`${API_URL}/registrar_venta`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(venta)
+                })
+                .then(res => res.json())
+                .then(data => {
+                    alert("¡Venta registrada con éxito en la nube!");
+                    setCarrito([]);
+                    window.location.reload(); // Recarga para ver el nuevo stock
+                });
+            };
+
+            if (cargando) return <div class="p-10 text-center">Cargando Balespi Import...</div>;
+
+            return (
+                <div class="p-4 max-w-4xl mx-auto">
+                    <h1 class="text-3xl font-bold text-blue-600 mb-6 text-center">Balespi Import 24/7</h1>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* LISTA DE PRODUCTOS */}
+                        <div>
+                            <h2 class="text-xl font-semibold mb-4">Catálogo de Productos</h2>
+                            {productos.map(p => (
+                                <div key={p.id} class="bg-white p-4 rounded shadow mb-3 flex justify-between items-center">
+                                    <div>
+                                        <p class="font-bold">{p.name}</p>
+                                        <p class="text-sm text-gray-500">Stock Tienda: {p.stock_tienda}</p>
+                                        <p class="text-blue-600">S/ {p.price_tienda}</p>
+                                    </div>
+                                    <button 
+                                        onClick={() => agregarAlCarrito(p)}
+                                        class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600">
+                                        + Agregar
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* CARRITO / VENTA */}
+                        <div class="bg-blue-50 p-6 rounded-lg border-2 border-blue-200">
+                            <h2 class="text-xl font-semibold mb-4 text-blue-800">Carrito de Venta</h2>
+                            {carrito.map((item, idx) => (
+                                <div key={idx} class="flex justify-between border-b py-2">
+                                    <span>{item.name}</span>
+                                    <span class="font-bold">S/ {item.price_tienda}</span>
+                                </div>
+                            ))}
+                            <div class="mt-6">
+                                <p class="text-2xl font-bold text-right">Total: S/ {carrito.reduce((sum, i) => sum + i.price_tienda, 0)}</p>
+                                <button 
+                                    onClick={procesarVenta}
+                                    disabled={carrito.length === 0}
+                                    class="w-full bg-blue-600 text-white py-3 rounded-lg mt-4 font-bold disabled:bg-gray-400">
+                                    CONFIRMAR VENTA
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
